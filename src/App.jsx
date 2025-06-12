@@ -234,7 +234,7 @@ const Dashboard = ({ student, setStudent }) => {
                                     </tbody>
                                 </table>
                             ) : (
-                                <p className="text-center text-gray-500 py-8">Ainda não há notas lançadas para si.</p>
+                                <p className="text-center text-gray-500 py-8">Ainda não há notas lançadas.</p>
                             )}
                         </div>
                     </div>
@@ -246,7 +246,6 @@ const Dashboard = ({ student, setStudent }) => {
 };
 
 
-// --- Componente Principal da Aplicação ---
 export default function App() {
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [student, setStudent] = useState(null);

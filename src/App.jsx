@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { Code } from 'lucide-react';
 
@@ -84,9 +84,8 @@ const LoginComponent = ({ setStudent, setNotification }) => {
         setIsLoading(true);
 
         try {
-            // 1. Busca EFICIENTE na coleção principal 'students'
             const studentsRef = collection(db, 'students');
-            const q = query(studentsRef, where("code", "==", trimmedCode)); // Compara texto com texto
+            const q = query(studentsRef, where("code", "==", trimmedCode));
             const studentQuerySnapshot = await getDocs(q);
 
             if (studentQuerySnapshot.empty) {
@@ -95,7 +94,6 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 return;
             }
 
-            // 2. Pega os dados do aluno e a ID da sua turma
             const studentDoc = studentQuerySnapshot.docs[0];
             const studentMasterData = studentDoc.data();
             const classId = studentMasterData.currentClassId;
@@ -104,29 +102,24 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 throw new Error("O aluno não está matriculado em nenhuma turma.");
             }
 
-            // 3. Busca os dados da turma para encontrar as notas
-            const classesRef = collection(db, classesCollectionPath);
-            const classesSnapshot = await getDocs(classesRef);
+            const classDocRef = doc(db, 'classes', classId);
+            const classDoc = await getDoc(classDocRef);
+
+            if (!classDoc.exists()) {
+                throw new Error("A turma do aluno não foi encontrada.");
+            }
+
+            const classData = classDoc.data();
             let studentClassData = null;
 
-            for (const classDoc of classesSnapshot.docs) {
-                if (classDoc.id === classId) {
-                    const classData = classDoc.data();
-                    if (classData.students && Array.isArray(classData.students)) {
-                        const studentFromArray = classData.students.find(s => s.code === trimmedCode);
-                        if (studentFromArray) {
-                            studentClassData = studentFromArray;
-                            break;
-                        }
-                    }
-                }
+            if (classData.students && Array.isArray(classData.students)) {
+                studentClassData = classData.students.find(s => String(s.code) === trimmedCode);
             }
 
             if (studentClassData) {
-                // 4. Combina os dados mestre com as notas da turma
                 const fullStudentData = {
-                    ...studentMasterData, // name, code, etc.
-                    grades: studentClassData.grades || {} // notas específicas da turma
+                    ...studentMasterData,
+                    grades: studentClassData.grades || {}
                 };
                 setNotification({ type: 'success', message: 'Login realizado com sucesso!' });
                 setStudent(fullStudentData);
@@ -143,7 +136,6 @@ const LoginComponent = ({ setStudent, setNotification }) => {
     };
 
     return (
-        // O JSX do seu formulário de login continua o mesmo
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
             <div className="max-w-md w-full bg-white rounded-xl shadow-xl p-8">
                 <div className="text-center mb-8">

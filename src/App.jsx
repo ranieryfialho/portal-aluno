@@ -160,6 +160,20 @@ const LoginComponent = ({ setStudent, setNotification }) => {
 // --- Componente do Painel de Controlo (com Nomes Completos dos Módulos) ---
 const Dashboard = ({ student, setStudent }) => {
 
+    const getDisplayName = (fullName) => {
+        if (typeof fullName !== 'string') return '';
+        
+        // Procura por um nome entre parênteses
+        const socialNameMatch = fullName.match(/\(([^)]+)\)/);
+        if (socialNameMatch && socialNameMatch[1]) {
+            return socialNameMatch[1].trim().split(' ')[0];
+        }
+
+        return fullName.split(' ')[0];
+    };
+
+    const displayName = getDisplayName(student.name);
+
     const subjectOrder = ["ICN", "OFFA", "ADM", "PWB", "TRI", "CMV"];
 
     const subjectFullNames = {
@@ -178,7 +192,7 @@ const Dashboard = ({ student, setStudent }) => {
         if (value && typeof value === 'object') {
             finalNota = value.finalGrade || 'N/D';
             frequencia = value.attendance || 'N/A';
-        }
+        } 
         else if (typeof value === 'string' || typeof value === 'number') {
             finalNota = value;
         }
@@ -204,7 +218,7 @@ const Dashboard = ({ student, setStudent }) => {
             <main className="flex-grow">
                 <div className="max-w-4xl mx-auto">
                     <header className="flex flex-wrap justify-between items-center mb-8 gap-4">
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Bem-vindo(a), <span className="text-blue-600">{student.name.split(' ')[0]}</span>!</h1>
+                        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Bem-vindo(a), <span className="text-blue-600">{displayName}</span>!</h1>
                         <button onClick={() => setStudent(null)} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">
                             Sair
                         </button>
@@ -233,7 +247,6 @@ const Dashboard = ({ student, setStudent }) => {
 
                                             return (
                                                 <tr key={grade.id} className="hover:bg-gray-50">
-                                                    {/* 2. Usamos o mapa para exibir o nome completo */}
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                         {subjectFullNames[grade.disciplina] || grade.disciplina}
                                                     </td>
@@ -257,7 +270,6 @@ const Dashboard = ({ student, setStudent }) => {
         </div>
     );
 };
-
 
 export default function App() {
     const [isAuthReady, setIsAuthReady] = useState(false);

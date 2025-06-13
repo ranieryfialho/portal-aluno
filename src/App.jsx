@@ -147,8 +147,6 @@ const Dashboard = ({ student, setStudent }) => {
     
     const subjectOrder = ["ICN", "OFFA", "ADM", "PWB", "TRI", "CMV"];
 
-    // --- MUDANÇA ESTÁ AQUI ---
-    // 1. Criamos o mapa de siglas para nomes completos.
     const subjectFullNames = {
         "ICN": "ICN - INTERNET E COMPUTAÇÃO EM NUVEM",
         "OFFA": "OFFA - OFFICE APLICADO",
@@ -172,7 +170,7 @@ const Dashboard = ({ student, setStudent }) => {
 
         return {
             id: key,
-            disciplina: key, // Mantemos a sigla para ordenação
+            disciplina: key,
             nota: finalNota,
             frequencia: frequencia
         };

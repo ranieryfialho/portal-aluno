@@ -6,12 +6,12 @@ import { Code } from 'lucide-react';
 
 // --- Configuração do Firebase ---
 const firebaseConfig = {
-  apiKey: "AIzaSyANMr7iik2i8ANNqXZFVg_Q_2U64qT2LpU",
-  authDomain: "boletim-escolar-app.firebaseapp.com",
-  projectId: "boletim-escolar-app",
-  storageBucket: "boletim-escolar-app.appspot.com",
-  messagingSenderId: "629925665935",
-  appId: "1:629925665935:web:ac8ad56de85161f649e4fa"
+    apiKey: "AIzaSyANMr7iik2i8ANNqXZFVg_Q_2U64qT2LpU",
+    authDomain: "boletim-escolar-app.firebaseapp.com",
+    projectId: "boletim-escolar-app",
+    storageBucket: "boletim-escolar-app.appspot.com",
+    messagingSenderId: "629925665935",
+    appId: "1:629925665935:web:ac8ad56de85161f649e4fa"
 };
 
 const classesCollectionPath = 'classes';
@@ -28,22 +28,22 @@ try {
 
 // --- Componente de Rodapé ---
 function Footer() {
-  return (
-    <footer className="w-full mt-auto py-6 text-center">
-      <p className="text-sm text-gray-500 flex items-center justify-center gap-2">
-        <Code size={16} className="text-gray-500" />
-        <span>Desenvolvido por</span>
-        <a 
-          href="https://github.com/ranieryfialho/" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
-        >
-          Raniery Fialho
-        </a>
-      </p>
-    </footer>
-  );
+    return (
+        <footer className="w-full mt-auto py-6 text-center">
+            <p className="text-sm text-gray-500 flex items-center justify-center gap-2">
+                <Code size={16} className="text-gray-500" />
+                <span>Desenvolvido por</span>
+                <a
+                    href="https://github.com/ranieryfialho/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                >
+                    Raniery Fialho
+                </a>
+            </p>
+        </footer>
+    );
 }
 
 // --- Componente de Notificação ---
@@ -82,36 +82,58 @@ const LoginComponent = ({ setStudent, setNotification }) => {
             return;
         }
         setIsLoading(true);
-        const codeAsNumber = parseInt(trimmedCode, 10);
-
-        if (isNaN(codeAsNumber)) {
-            setNotification({ type: 'error', message: 'O código deve conter apenas números.' });
-            setIsLoading(false);
-            return;
-        }
 
         try {
+            // 1. Busca EFICIENTE na coleção principal 'students'
+            const studentsRef = collection(db, 'students');
+            const q = query(studentsRef, where("code", "==", trimmedCode)); // Compara texto com texto
+            const studentQuerySnapshot = await getDocs(q);
+
+            if (studentQuerySnapshot.empty) {
+                setNotification({ type: 'error', message: 'Código de aluno não encontrado.' });
+                setIsLoading(false);
+                return;
+            }
+
+            // 2. Pega os dados do aluno e a ID da sua turma
+            const studentDoc = studentQuerySnapshot.docs[0];
+            const studentMasterData = studentDoc.data();
+            const classId = studentMasterData.currentClassId;
+
+            if (!classId) {
+                throw new Error("O aluno não está matriculado em nenhuma turma.");
+            }
+
+            // 3. Busca os dados da turma para encontrar as notas
             const classesRef = collection(db, classesCollectionPath);
             const classesSnapshot = await getDocs(classesRef);
-            let foundStudent = null;
+            let studentClassData = null;
+
             for (const classDoc of classesSnapshot.docs) {
-                const classData = classDoc.data();
-                if (classData.students && Array.isArray(classData.students)) {
-                    const studentFromArray = classData.students.find(student => student.code === codeAsNumber);
-                    if (studentFromArray) {
-                        foundStudent = studentFromArray;
-                        break;
+                if (classDoc.id === classId) {
+                    const classData = classDoc.data();
+                    if (classData.students && Array.isArray(classData.students)) {
+                        const studentFromArray = classData.students.find(s => s.code === trimmedCode);
+                        if (studentFromArray) {
+                            studentClassData = studentFromArray;
+                            break;
+                        }
                     }
                 }
             }
 
-            if (foundStudent) {
+            if (studentClassData) {
+                // 4. Combina os dados mestre com as notas da turma
+                const fullStudentData = {
+                    ...studentMasterData, // name, code, etc.
+                    grades: studentClassData.grades || {} // notas específicas da turma
+                };
                 setNotification({ type: 'success', message: 'Login realizado com sucesso!' });
-                setStudent({ id: foundStudent.code, ...foundStudent });
+                setStudent(fullStudentData);
             } else {
-                setNotification({ type: 'error', message: 'Código de aluno não encontrado.' });
-                setStudent(null);
+                throw new Error("Não foi possível encontrar os dados do aluno na sua turma.");
             }
+
         } catch (error) {
             console.error("Erro ao fazer login: ", error);
             setNotification({ type: 'error', message: 'Ocorreu um erro ao tentar fazer login.' });
@@ -121,6 +143,7 @@ const LoginComponent = ({ setStudent, setNotification }) => {
     };
 
     return (
+        // O JSX do seu formulário de login continua o mesmo
         <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
             <div className="max-w-md w-full bg-white rounded-xl shadow-xl p-8">
                 <div className="text-center mb-8">
@@ -144,7 +167,7 @@ const LoginComponent = ({ setStudent, setNotification }) => {
 
 // --- Componente do Painel de Controlo (com Nomes Completos dos Módulos) ---
 const Dashboard = ({ student, setStudent }) => {
-    
+
     const subjectOrder = ["ICN", "OFFA", "ADM", "PWB", "TRI", "CMV"];
 
     const subjectFullNames = {
@@ -163,7 +186,7 @@ const Dashboard = ({ student, setStudent }) => {
         if (value && typeof value === 'object') {
             finalNota = value.finalGrade || 'N/D';
             frequencia = value.attendance || 'N/A';
-        } 
+        }
         else if (typeof value === 'string' || typeof value === 'number') {
             finalNota = value;
         }
@@ -251,7 +274,7 @@ export default function App() {
 
     useEffect(() => {
         if (!auth) {
-            setIsAuthReady(true); 
+            setIsAuthReady(true);
             return;
         }
         const unsubscribe = onAuthStateChanged(auth, async (user) => {

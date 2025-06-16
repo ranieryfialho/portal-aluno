@@ -67,7 +67,7 @@ const Notification = ({ message, type, onClose }) => {
     );
 };
 
-// --- Componente de Login (com a sua lógica melhorada) ---
+// --- Componente de Login (a sua lógica melhorada) ---
 const LoginComponent = ({ setStudent, setNotification }) => {
     const [studentCode, setStudentCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -82,7 +82,6 @@ const LoginComponent = ({ setStudent, setNotification }) => {
         setIsLoading(true);
 
         try {
-            // 1. Procura o aluno na coleção 'students' pelo código.
             const studentsRef = collection(db, 'students');
             const q = query(studentsRef, where("code", "==", trimmedCode));
             const studentQuerySnapshot = await getDocs(q);
@@ -93,7 +92,6 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 return;
             }
 
-            // 2. Pega os dados mestre do aluno e o ID da sua turma.
             const studentDoc = studentQuerySnapshot.docs[0];
             const studentMasterData = { id: studentDoc.id, ...studentDoc.data() };
             const classId = studentMasterData.currentClassId;
@@ -102,7 +100,6 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 throw new Error("O aluno não está matriculado em nenhuma turma.");
             }
 
-            // 3. Busca os dados da turma específica do aluno.
             const classDocRef = doc(db, 'classes', classId);
             const classDocSnap = await getDoc(classDocRef);
 
@@ -110,18 +107,16 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 throw new Error("A turma do aluno não foi encontrada.");
             }
 
-            // 4. Encontra os dados de notas do aluno dentro da turma.
             const classData = classDocSnap.data();
             let studentClassData = null;
             if (classData.students && Array.isArray(classData.students)) {
                 studentClassData = classData.students.find(s => String(s.code) === trimmedCode);
             }
 
-            // 5. Combina os dados mestre com os dados de notas e atualiza o estado.
             if (studentClassData) {
                 const fullStudentData = {
                     ...studentMasterData,
-                    grades: studentClassData.grades || {} // Garante que 'grades' seja um objeto.
+                    grades: studentClassData.grades || {}
                 };
                 setNotification({ type: 'success', message: 'Login realizado com sucesso!' });
                 setStudent(fullStudentData);
@@ -161,7 +156,8 @@ const LoginComponent = ({ setStudent, setNotification }) => {
     );
 };
 
-// --- Componente do Modal de Detalhe das Notas ---
+
+// --- Componente do Modal (COM FORMATAÇÃO DE COR) ---
 const SubGradesModal = ({ subGrades, subjectName, onClose }) => {
     if (!subGrades) return null;
 
@@ -178,12 +174,23 @@ const SubGradesModal = ({ subGrades, subjectName, onClose }) => {
                 <h3 className="text-xl font-bold text-gray-800 mb-4">Notas - {subjectName}</h3>
                 <div className="border-t border-gray-200 pt-4">
                     <ul className="space-y-2">
-                        {Object.entries(subGrades).map(([name, grade]) => (
-                            <li key={name} className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
-                                <span className="text-gray-600">{name}</span>
-                                <span className="font-bold text-gray-800">{grade}</span>
-                            </li>
-                        ))}
+                        {Object.entries(subGrades).map(([name, grade]) => {
+                            // --- LÓGICA DE CORES ADICIONADA AQUI ---
+                            const isNumericGrade = !isNaN(parseFloat(grade));
+                            const gradeColorClass = isNumericGrade
+                                ? parseFloat(grade) >= 7
+                                    ? 'text-green-600'
+                                    : 'text-red-600'
+                                : 'text-gray-800';
+
+                            return (
+                                <li key={name} className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
+                                    <span className="text-gray-600">{name}</span>
+                                    {/* Aplica a classe de cor à nota */}
+                                    <span className={`font-bold ${gradeColorClass}`}>{grade}</span>
+                                </li>
+                            );
+                        })}
                     </ul>
                 </div>
             </div>
@@ -191,12 +198,12 @@ const SubGradesModal = ({ subGrades, subjectName, onClose }) => {
     );
 };
 
-// --- Componente do Painel de Controlo (com todas as melhorias) ---
+// --- Componente do Painel de Controlo ---
 const Dashboard = ({ student, setStudent }) => {
-    
+
     const [selectedSubGrades, setSelectedSubGrades] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    
+
     const getDisplayName = (fullName) => {
         if (typeof fullName !== 'string') return '';
         const socialNameMatch = fullName.match(/\(([^)]+)\)/);
@@ -249,6 +256,7 @@ const Dashboard = ({ student, setStudent }) => {
     });
 
     const handleGradeClick = (subGrades, subjectName) => {
+        if (!subGrades) return;
         setSelectedSubGrades({ grades: subGrades, name: subjectName });
         setIsModalOpen(true);
     };
@@ -298,7 +306,7 @@ const Dashboard = ({ student, setStudent }) => {
                                                     </td>
                                                     <td
                                                         className={`px-6 py-4 whitespace-nowrap text-sm text-center transition-colors ${gradeColorClass} ${clickableClass}`}
-                                                        onClick={() => hasSubGrades && handleGradeClick(grade.subGrades, subjectFullNames[grade.disciplina])}
+                                                        onClick={() => handleGradeClick(grade.subGrades, subjectFullNames[grade.disciplina])}
                                                     >
                                                         <div className="flex items-center justify-center gap-2">
                                                             <span>{grade.nota}</span>

@@ -67,7 +67,11 @@ const Notification = ({ message, type, onClose }) => {
     );
 };
 
+<<<<<<< HEAD
 // --- Componente de Login (com a nova lógica de busca) ---
+=======
+// --- Componente de Login (a sua lógica melhorada) ---
+>>>>>>> 4af4c68b8ba4330de6fb89875ad72467340a157a
 const LoginComponent = ({ setStudent, setNotification }) => {
     const [studentCode, setStudentCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -95,6 +99,7 @@ const LoginComponent = ({ setStudent, setNotification }) => {
 
             const studentDoc = studentQuerySnapshot.docs[0];
             const studentMasterData = { id: studentDoc.id, ...studentDoc.data() };
+<<<<<<< HEAD
             
             // --- NOVA LÓGICA DE BUSCA ---
             // Define as coleções onde as notas podem estar.
@@ -119,6 +124,25 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 if (studentClassData) {
                     break; // Encontrou o aluno, pode parar de procurar em outras coleções.
                 }
+=======
+            const classId = studentMasterData.currentClassId;
+
+            if (!classId) {
+                throw new Error("O aluno não está matriculado em nenhuma turma.");
+            }
+
+            const classDocRef = doc(db, 'classes', classId);
+            const classDocSnap = await getDoc(classDocRef);
+
+            if (!classDocSnap.exists()) {
+                throw new Error("A turma do aluno não foi encontrada.");
+            }
+
+            const classData = classDocSnap.data();
+            let studentClassData = null;
+            if (classData.students && Array.isArray(classData.students)) {
+                studentClassData = classData.students.find(s => String(s.code) === trimmedCode);
+>>>>>>> 4af4c68b8ba4330de6fb89875ad72467340a157a
             }
             // --- FIM DA NOVA LÓGICA ---
 
@@ -130,8 +154,12 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 setNotification({ type: 'success', message: 'Login realizado com sucesso!' });
                 setStudent(fullStudentData);
             } else {
+<<<<<<< HEAD
                 // Se o aluno existe mas não está em nenhuma turma (ativa ou de concluintes)
                 throw new Error("Não foi possível encontrar as notas do aluno em nenhuma turma.");
+=======
+                throw new Error("Não foi possível encontrar os dados de notas do aluno na sua turma.");
+>>>>>>> 4af4c68b8ba4330de6fb89875ad72467340a157a
             }
 
         } catch (error) {
@@ -166,7 +194,12 @@ const LoginComponent = ({ setStudent, setNotification }) => {
     );
 };
 
+<<<<<<< HEAD
 // --- Componente do Modal ---
+=======
+
+// --- Componente do Modal (COM FORMATAÇÃO DE COR) ---
+>>>>>>> 4af4c68b8ba4330de6fb89875ad72467340a157a
 const SubGradesModal = ({ subGrades, subjectName, onClose }) => {
     if (!subGrades) return null;
 
@@ -184,6 +217,10 @@ const SubGradesModal = ({ subGrades, subjectName, onClose }) => {
                 <div className="border-t border-gray-200 pt-4">
                     <ul className="space-y-2">
                         {Object.entries(subGrades).map(([name, grade]) => {
+<<<<<<< HEAD
+=======
+                            // --- LÓGICA DE CORES ADICIONADA AQUI ---
+>>>>>>> 4af4c68b8ba4330de6fb89875ad72467340a157a
                             const isNumericGrade = !isNaN(parseFloat(grade));
                             const gradeColorClass = isNumericGrade
                                 ? parseFloat(grade) >= 7
@@ -194,6 +231,10 @@ const SubGradesModal = ({ subGrades, subjectName, onClose }) => {
                             return (
                                 <li key={name} className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
                                     <span className="text-gray-600">{name}</span>
+<<<<<<< HEAD
+=======
+                                    {/* Aplica a classe de cor à nota */}
+>>>>>>> 4af4c68b8ba4330de6fb89875ad72467340a157a
                                     <span className={`font-bold ${gradeColorClass}`}>{grade}</span>
                                 </li>
                             );

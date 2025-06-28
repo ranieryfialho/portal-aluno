@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { Code } from 'lucide-react';
+import { Code, Maximize2, X } from 'lucide-react';
 
 // --- Configuração do Firebase ---
 const firebaseConfig = {
@@ -13,8 +13,6 @@ const firebaseConfig = {
     messagingSenderId: "629925665935",
     appId: "1:629925665935:web:ac8ad56de85161f649e4fa"
 };
-
-const classesCollectionPath = 'classes';
 
 // --- Inicialização do Firebase ---
 let app, db, auth;
@@ -69,7 +67,7 @@ const Notification = ({ message, type, onClose }) => {
     );
 };
 
-// --- Componente de Login ---
+// --- Componente de Login (com a nova lógica de busca) ---
 const LoginComponent = ({ setStudent, setNotification }) => {
     const [studentCode, setStudentCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -84,6 +82,7 @@ const LoginComponent = ({ setStudent, setNotification }) => {
         setIsLoading(true);
 
         try {
+            // 1. Procura o aluno na coleção principal 'students'.
             const studentsRef = collection(db, 'students');
             const q = query(studentsRef, where("code", "==", trimmedCode));
             const studentQuerySnapshot = await getDocs(q);
@@ -95,26 +94,33 @@ const LoginComponent = ({ setStudent, setNotification }) => {
             }
 
             const studentDoc = studentQuerySnapshot.docs[0];
-            const studentMasterData = studentDoc.data();
-            const classId = studentMasterData.currentClassId;
-
-            if (!classId) {
-                throw new Error("O aluno não está matriculado em nenhuma turma.");
-            }
-
-            const classDocRef = doc(db, 'classes', classId);
-            const classDoc = await getDoc(classDocRef);
-
-            if (!classDoc.exists()) {
-                throw new Error("A turma do aluno não foi encontrada.");
-            }
-
-            const classData = classDoc.data();
+            const studentMasterData = { id: studentDoc.id, ...studentDoc.data() };
+            
+            // --- NOVA LÓGICA DE BUSCA ---
+            // Define as coleções onde as notas podem estar.
+            const collectionsToSearch = ['classes', 'concludentes']; 
             let studentClassData = null;
 
-            if (classData.students && Array.isArray(classData.students)) {
-                studentClassData = classData.students.find(s => String(s.code) === trimmedCode);
+            // 2. Procura o aluno em cada coleção definida.
+            for (const collectionName of collectionsToSearch) {
+                const classCollectionRef = collection(db, collectionName);
+                const classQuerySnapshot = await getDocs(classCollectionRef);
+
+                for (const classDoc of classQuerySnapshot.docs) {
+                    const classData = classDoc.data();
+                    if (classData.students && Array.isArray(classData.students)) {
+                        const foundStudent = classData.students.find(s => String(s.code) === trimmedCode);
+                        if (foundStudent) {
+                            studentClassData = foundStudent;
+                            break; // Encontrou o aluno, pode parar de procurar na turma.
+                        }
+                    }
+                }
+                if (studentClassData) {
+                    break; // Encontrou o aluno, pode parar de procurar em outras coleções.
+                }
             }
+            // --- FIM DA NOVA LÓGICA ---
 
             if (studentClassData) {
                 const fullStudentData = {
@@ -124,44 +130,98 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 setNotification({ type: 'success', message: 'Login realizado com sucesso!' });
                 setStudent(fullStudentData);
             } else {
-                throw new Error("Não foi possível encontrar os dados do aluno na sua turma.");
+                // Se o aluno existe mas não está em nenhuma turma (ativa ou de concluintes)
+                throw new Error("Não foi possível encontrar as notas do aluno em nenhuma turma.");
             }
 
         } catch (error) {
             console.error("Erro ao fazer login: ", error);
-            setNotification({ type: 'error', message: 'Ocorreu um erro ao tentar fazer login.' });
+            setNotification({ type: 'error', message: error.message || 'Ocorreu um erro ao tentar fazer login.' });
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 flex flex-col justify-center items-center p-4">
-            <div className="max-w-md w-full bg-white rounded-xl shadow-xl p-8">
-                <div className="text-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-800">Portal do Aluno</h1>
-                    <p className="text-gray-500 mt-2">Consulte as suas notas e frequência</p>
-                </div>
-                <form onSubmit={handleLogin}>
-                    <div className="mb-6">
-                        <label htmlFor="studentCode" className="block text-sm font-medium text-gray-700 mb-1">Seu Código de Aluno</label>
-                        <input id="studentCode" type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Digite o seu código aqui" required />
+        <div className="min-h-screen bg-gray-100 flex flex-col">
+            <main className="flex-grow flex items-center justify-center p-4">
+                <div className="max-w-md w-full bg-white rounded-xl shadow-xl p-8">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-gray-800">Portal do Aluno</h1>
+                        <p className="text-gray-500 mt-2">Consulte as suas notas e frequência</p>
                     </div>
-                    <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 transition-colors duration-300">
-                        {isLoading ? 'A entrar...' : 'Entrar'}
-                    </button>
-                </form>
-            </div>
+                    <form onSubmit={handleLogin}>
+                        <div className="mb-6">
+                            <label htmlFor="studentCode" className="block text-sm font-medium text-gray-700 mb-1">Seu Código de Aluno</label>
+                            <input id="studentCode" type="text" value={studentCode} onChange={(e) => setStudentCode(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500" placeholder="Digite o seu código aqui" required />
+                        </div>
+                        <button type="submit" disabled={isLoading} className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 transition-colors duration-300">
+                            {isLoading ? 'A entrar...' : 'Entrar'}
+                        </button>
+                    </form>
+                </div>
+            </main>
             <Footer />
         </div>
     );
 };
 
-// --- Componente do Painel de Controlo (com Nomes Completos dos Módulos) ---
+// --- Componente do Modal ---
+const SubGradesModal = ({ subGrades, subjectName, onClose }) => {
+    if (!subGrades) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 animate-fade-in">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md relative animate-slide-up">
+                <button
+                    onClick={onClose}
+                    className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition-colors"
+                    aria-label="Fechar modal"
+                >
+                    <X size={24} />
+                </button>
+                <h3 className="text-xl font-bold text-gray-800 mb-4">Notas - {subjectName}</h3>
+                <div className="border-t border-gray-200 pt-4">
+                    <ul className="space-y-2">
+                        {Object.entries(subGrades).map(([name, grade]) => {
+                            const isNumericGrade = !isNaN(parseFloat(grade));
+                            const gradeColorClass = isNumericGrade
+                                ? parseFloat(grade) >= 7
+                                    ? 'text-green-600'
+                                    : 'text-red-600'
+                                : 'text-gray-800';
+
+                            return (
+                                <li key={name} className="flex justify-between items-center bg-gray-50 p-3 rounded-md">
+                                    <span className="text-gray-600">{name}</span>
+                                    <span className={`font-bold ${gradeColorClass}`}>{grade}</span>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// --- Componente do Painel de Controlo ---
 const Dashboard = ({ student, setStudent }) => {
 
-    const subjectOrder = ["ICN", "OFFA", "ADM", "PWB", "TRI", "CMV"];
+    const [selectedSubGrades, setSelectedSubGrades] = useState(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
+    const getDisplayName = (fullName) => {
+        if (typeof fullName !== 'string') return '';
+        const socialNameMatch = fullName.match(/\(([^)]+)\)/);
+        if (socialNameMatch && socialNameMatch[1]) {
+            return socialNameMatch[1].trim().split(' ')[0];
+        }
+        return fullName.split(' ')[0];
+    };
+
+    const displayName = getDisplayName(student.name);
+    const subjectOrder = ["ICN", "OFFA", "ADM", "PWB", "TRI", "CMV"];
     const subjectFullNames = {
         "ICN": "ICN - INTERNET E COMPUTAÇÃO EM NUVEM",
         "OFFA": "OFFA - OFFICE APLICADO",
@@ -174,10 +234,12 @@ const Dashboard = ({ student, setStudent }) => {
     const gradesList = student.grades ? Object.entries(student.grades).map(([key, value]) => {
         let finalNota = 'N/D';
         let frequencia = 'N/A';
+        let subGradesData = null;
 
         if (value && typeof value === 'object') {
             finalNota = value.finalGrade || 'N/D';
             frequencia = value.attendance || 'N/A';
+            subGradesData = value.subGrades || null;
         }
         else if (typeof value === 'string' || typeof value === 'number') {
             finalNota = value;
@@ -187,7 +249,8 @@ const Dashboard = ({ student, setStudent }) => {
             id: key,
             disciplina: key,
             nota: finalNota,
-            frequencia: frequencia
+            frequencia: frequencia,
+            subGrades: subGradesData
         };
     }) : [];
 
@@ -199,17 +262,27 @@ const Dashboard = ({ student, setStudent }) => {
         return indexA - indexB;
     });
 
+    const handleGradeClick = (subGrades, subjectName) => {
+        if (!subGrades) return;
+        setSelectedSubGrades({ grades: subGrades, name: subjectName });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setSelectedSubGrades(null);
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 sm:p-6 md:p-8">
             <main className="flex-grow">
                 <div className="max-w-4xl mx-auto">
                     <header className="flex flex-wrap justify-between items-center mb-8 gap-4">
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Bem-vindo(a), <span className="text-blue-600">{student.name.split(' ')[0]}</span>!</h1>
+                        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Bem-vindo(a), <span className="text-blue-600">{displayName}</span>!</h1>
                         <button onClick={() => setStudent(null)} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">
                             Sair
                         </button>
                     </header>
-
                     <div className="bg-white p-6 rounded-xl shadow-lg">
                         <h2 className="text-xl font-semibold mb-6 text-gray-700">O seu Boletim</h2>
                         <div className="overflow-x-auto">
@@ -230,15 +303,22 @@ const Dashboard = ({ student, setStudent }) => {
                                                     ? 'text-green-800 bg-green-100 font-bold'
                                                     : 'text-red-800 bg-red-100 font-bold'
                                                 : 'text-gray-600';
+                                            const hasSubGrades = grade.subGrades && Object.keys(grade.subGrades).length > 0;
+                                            const clickableClass = hasSubGrades ? 'cursor-pointer hover:bg-gray-200' : '';
 
                                             return (
                                                 <tr key={grade.id} className="hover:bg-gray-50">
-                                                    {/* 2. Usamos o mapa para exibir o nome completo */}
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                         {subjectFullNames[grade.disciplina] || grade.disciplina}
                                                     </td>
-                                                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-center ${gradeColorClass}`}>
-                                                        {grade.nota}
+                                                    <td
+                                                        className={`px-6 py-4 whitespace-nowrap text-sm text-center transition-colors ${gradeColorClass} ${clickableClass}`}
+                                                        onClick={() => handleGradeClick(grade.subGrades, subjectFullNames[grade.disciplina])}
+                                                    >
+                                                        <div className="flex items-center justify-center gap-2">
+                                                            <span>{grade.nota}</span>
+                                                            {hasSubGrades && <Maximize2 size={14} className="opacity-50" />}
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-600">{grade.frequencia}</td>
                                                 </tr>
@@ -254,11 +334,18 @@ const Dashboard = ({ student, setStudent }) => {
                 </div>
             </main>
             <Footer />
+            {isModalOpen && (
+                <SubGradesModal
+                    subGrades={selectedSubGrades.grades}
+                    subjectName={selectedSubGrades.name}
+                    onClose={closeModal}
+                />
+            )}
         </div>
     );
 };
 
-
+// --- Componente Principal da Aplicação ---
 export default function App() {
     const [isAuthReady, setIsAuthReady] = useState(false);
     const [student, setStudent] = useState(null);

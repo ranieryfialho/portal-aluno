@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, collection, query, where, getDocs } from 'firebase/firestore';
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { Code, Maximize2, X } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // --- Configuração do Firebase ---
 const firebaseConfig = {
@@ -67,7 +68,7 @@ const Notification = ({ message, type, onClose }) => {
     );
 };
 
-// --- Componente de Login (com a nova lógica de busca) ---
+// --- Componente de Login ---
 const LoginComponent = ({ setStudent, setNotification }) => {
     const [studentCode, setStudentCode] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -82,7 +83,6 @@ const LoginComponent = ({ setStudent, setNotification }) => {
         setIsLoading(true);
 
         try {
-            // 1. Procura o aluno na coleção principal 'students'.
             const studentsRef = collection(db, 'students');
             const q = query(studentsRef, where("code", "==", trimmedCode));
             const studentQuerySnapshot = await getDocs(q);
@@ -95,13 +95,10 @@ const LoginComponent = ({ setStudent, setNotification }) => {
 
             const studentDoc = studentQuerySnapshot.docs[0];
             const studentMasterData = { id: studentDoc.id, ...studentDoc.data() };
-            
-            // --- NOVA LÓGICA DE BUSCA ---
-            // Define as coleções onde as notas podem estar.
-            const collectionsToSearch = ['classes', 'concludentes']; 
+
+            const collectionsToSearch = ['classes', 'concludentes'];
             let studentClassData = null;
 
-            // 2. Procura o aluno em cada coleção definida.
             for (const collectionName of collectionsToSearch) {
                 const classCollectionRef = collection(db, collectionName);
                 const classQuerySnapshot = await getDocs(classCollectionRef);
@@ -112,15 +109,14 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                         const foundStudent = classData.students.find(s => String(s.code) === trimmedCode);
                         if (foundStudent) {
                             studentClassData = foundStudent;
-                            break; // Encontrou o aluno, pode parar de procurar na turma.
+                            break;
                         }
                     }
                 }
                 if (studentClassData) {
-                    break; // Encontrou o aluno, pode parar de procurar em outras coleções.
+                    break;
                 }
             }
-            // --- FIM DA NOVA LÓGICA ---
 
             if (studentClassData) {
                 const fullStudentData = {
@@ -130,7 +126,6 @@ const LoginComponent = ({ setStudent, setNotification }) => {
                 setNotification({ type: 'success', message: 'Login realizado com sucesso!' });
                 setStudent(fullStudentData);
             } else {
-                // Se o aluno existe mas não está em nenhuma turma (ativa ou de concluintes)
                 throw new Error("Não foi possível encontrar as notas do aluno em nenhuma turma.");
             }
 
@@ -205,9 +200,80 @@ const SubGradesModal = ({ subGrades, subjectName, onClose }) => {
     );
 };
 
-// --- Componente do Painel de Controlo ---
-const Dashboard = ({ student, setStudent }) => {
+// --- NOVO Componente do Gráfico ---
+const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+        return (
+            <div className="p-3 bg-white border border-gray-200 rounded-lg shadow-lg">
+                <p className="font-bold text-gray-900">{label}</p>
+                <p className="text-sm" style={{ color: '#6366F1' }}>
+                    {`Nota: ${payload[0].value.toFixed(1)}`}
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
 
+// O componente do gráfico
+const GradesChart = ({ data, subjectFullNames }) => {
+    if (!data || data.length === 0) {
+        return <p className="text-center text-gray-500 py-4">Não há dados de notas para exibir o gráfico.</p>;
+    }
+
+    const getFullSubjectName = (shortName) => subjectFullNames[shortName] || shortName;
+
+    return (
+        <ResponsiveContainer width="100%" height={400}>
+            <LineChart
+                data={data}
+                margin={{ top: 20, right: 30, left: 0, bottom: 120 }}
+            >
+                {/* Linhas de grade no fundo, de forma suave */}
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+
+                {/* Eixo X (nomes das matérias) */}
+                <XAxis
+                    dataKey="disciplina"
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                    interval={0}
+                    tick={{ fontSize: 12, fill: '#4B5563' }}
+                    tickFormatter={getFullSubjectName}
+                    stroke="#d1d5db"
+                />
+
+                {/* Eixo Y (notas de 0 a 10) */}
+                <YAxis
+                    domain={[0, 10]}
+                    tick={{ fontSize: 12, fill: '#4B5563' }}
+                    stroke="#d1d5db"
+                />
+
+                {/* A caixinha de informações */}
+                <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#c7d2fe', strokeWidth: 2 }} />
+
+                {/* A LINHA PRINCIPAL DO GRÁFICO */}
+                <Line
+                    type="monotone" // Curva suave
+                    dataKey="nota"
+                    name="Nota Final"
+                    stroke="#6366F1" // Cor da linha (um anil vibrante)
+                    strokeWidth={3}
+                    // Ponto em cada nota
+                    dot={{ r: 6, fill: '#6366F1', stroke: '#fff', strokeWidth: 2 }}
+                    // Ponto maior quando o mouse está em cima
+                    activeDot={{ r: 8, stroke: '#6366F1', fill: '#fff', strokeWidth: 2 }}
+                />
+            </LineChart>
+        </ResponsiveContainer>
+    );
+};
+
+
+// --- Componente do Painel de Controlo (MODIFICADO) ---
+const Dashboard = ({ student, setStudent }) => {
     const [selectedSubGrades, setSelectedSubGrades] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -231,36 +297,40 @@ const Dashboard = ({ student, setStudent }) => {
         "CMV": "CMV - COMUNICAÇÃO VISUAL COM ILLUSTRATOR"
     };
 
-    const gradesList = student.grades ? Object.entries(student.grades).map(([key, value]) => {
-        let finalNota = 'N/D';
-        let frequencia = 'N/A';
-        let subGradesData = null;
+    const gradesList = useMemo(() => {
+        const list = student.grades ? Object.entries(student.grades).map(([key, value]) => {
+            let finalNota = 'N/D';
+            let frequencia = 'N/A';
+            let subGradesData = null;
 
-        if (value && typeof value === 'object') {
-            finalNota = value.finalGrade || 'N/D';
-            frequencia = value.attendance || 'N/A';
-            subGradesData = value.subGrades || null;
-        }
-        else if (typeof value === 'string' || typeof value === 'number') {
-            finalNota = value;
-        }
+            if (value && typeof value === 'object') {
+                finalNota = value.finalGrade || 'N/D';
+                frequencia = value.attendance || 'N/A';
+                subGradesData = value.subGrades || null;
+            } else if (typeof value === 'string' || typeof value === 'number') {
+                finalNota = value;
+            }
 
-        return {
-            id: key,
-            disciplina: key,
-            nota: finalNota,
-            frequencia: frequencia,
-            subGrades: subGradesData
-        };
-    }) : [];
+            return { id: key, disciplina: key, nota: finalNota, frequencia: frequencia, subGrades: subGradesData };
+        }) : [];
 
-    gradesList.sort((a, b) => {
-        const indexA = subjectOrder.indexOf(a.disciplina);
-        const indexB = subjectOrder.indexOf(b.disciplina);
-        if (indexA === -1) return 1;
-        if (indexB === -1) return -1;
-        return indexA - indexB;
-    });
+        list.sort((a, b) => {
+            const indexA = subjectOrder.indexOf(a.disciplina);
+            const indexB = subjectOrder.indexOf(b.disciplina);
+            if (indexA === -1) return 1; if (indexB === -1) return -1;
+            return indexA - indexB;
+        });
+        return list;
+    }, [student.grades]);
+
+    const chartData = useMemo(() => {
+        return gradesList
+            .map(grade => ({
+                disciplina: grade.disciplina,
+                nota: !isNaN(parseFloat(grade.nota)) ? parseFloat(grade.nota) : 0
+            }))
+            .filter(grade => grade.nota > 0 || grade.nota === 0);
+    }, [gradesList]);
 
     const handleGradeClick = (subGrades, subjectName) => {
         if (!subGrades) return;
@@ -283,7 +353,9 @@ const Dashboard = ({ student, setStudent }) => {
                             Sair
                         </button>
                     </header>
-                    <div className="bg-white p-6 rounded-xl shadow-lg">
+
+                    {/* --- BLOCO DO BOLETIM (AGORA EM CIMA) --- */}
+                    <div className="bg-white p-6 rounded-xl shadow-lg mb-8"> {/* Adicionado mb-8 para dar espaço abaixo */}
                         <h2 className="text-xl font-semibold mb-6 text-gray-700">O seu Boletim</h2>
                         <div className="overflow-x-auto">
                             {gradesList.length > 0 ? (
@@ -298,23 +370,14 @@ const Dashboard = ({ student, setStudent }) => {
                                     <tbody className="bg-white divide-y divide-gray-200">
                                         {gradesList.map((grade) => {
                                             const isNumericGrade = !isNaN(parseFloat(grade.nota));
-                                            const gradeColorClass = isNumericGrade
-                                                ? parseFloat(grade.nota) >= 7
-                                                    ? 'text-green-800 bg-green-100 font-bold'
-                                                    : 'text-red-800 bg-red-100 font-bold'
-                                                : 'text-gray-600';
+                                            const gradeColorClass = isNumericGrade ? (parseFloat(grade.nota) >= 7 ? 'text-green-800 bg-green-100 font-bold' : 'text-red-800 bg-red-100 font-bold') : 'text-gray-600';
                                             const hasSubGrades = grade.subGrades && Object.keys(grade.subGrades).length > 0;
                                             const clickableClass = hasSubGrades ? 'cursor-pointer hover:bg-gray-200' : '';
 
                                             return (
                                                 <tr key={grade.id} className="hover:bg-gray-50">
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                                        {subjectFullNames[grade.disciplina] || grade.disciplina}
-                                                    </td>
-                                                    <td
-                                                        className={`px-6 py-4 whitespace-nowrap text-sm text-center transition-colors ${gradeColorClass} ${clickableClass}`}
-                                                        onClick={() => handleGradeClick(grade.subGrades, subjectFullNames[grade.disciplina])}
-                                                    >
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{subjectFullNames[grade.disciplina] || grade.disciplina}</td>
+                                                    <td className={`px-6 py-4 whitespace-nowrap text-sm text-center transition-colors ${gradeColorClass} ${clickableClass}`} onClick={() => handleGradeClick(grade.subGrades, subjectFullNames[grade.disciplina])}>
                                                         <div className="flex items-center justify-center gap-2">
                                                             <span>{grade.nota}</span>
                                                             {hasSubGrades && <Maximize2 size={14} className="opacity-50" />}
@@ -331,6 +394,13 @@ const Dashboard = ({ student, setStudent }) => {
                             )}
                         </div>
                     </div>
+
+                    {/* --- BLOCO DO GRÁFICO (AGORA EM BAIXO) --- */}
+                    <div className="bg-white p-6 rounded-xl shadow-lg">
+                        <h2 className="text-xl font-semibold mb-6 text-gray-700">Desempenho Geral</h2>
+                        <GradesChart data={chartData} subjectFullNames={subjectFullNames} />
+                    </div>
+
                 </div>
             </main>
             <Footer />

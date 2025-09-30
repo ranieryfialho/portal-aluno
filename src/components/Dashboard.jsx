@@ -1,11 +1,16 @@
+// src/components/Dashboard.jsx
+
 import React, { useState, useMemo } from 'react';
 import { Maximize2 } from 'lucide-react';
 import GradesChart from './GradesChart';
 import SubGradesModal from './SubGradesModal';
 import Footer from './Footer';
-import RecommendationCard from './RecommendationCard'; // Certifique-se que este componente foi criado
+import RecommendationCard from './RecommendationCard';
+// --- ADIÇÃO ---
+import MeusEventos from './MeusEventos'; 
 
-const Dashboard = ({ student, setStudent }) => {
+// --- ADIÇÃO ---
+const Dashboard = ({ student, setStudent, db }) => {
     const [selectedSubGrades, setSelectedSubGrades] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -80,16 +85,26 @@ const Dashboard = ({ student, setStudent }) => {
         setSelectedSubGrades(null);
     };
 
+    const handleLogout = () => {
+        localStorage.removeItem('studentData');
+        setStudent(null);
+    };
+
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 sm:p-6 md:p-8">
             <main className="flex-grow">
                 <div className="max-w-7xl mx-auto">
                     <header className="flex flex-wrap justify-between items-center mb-8 gap-4">
                         <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Bem-vindo(a), <span className="text-blue-600">{displayName}</span>!</h1>
-                        <button onClick={() => setStudent(null)} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">
+                        <button onClick={handleLogout} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">
                             Sair
                         </button>
                     </header>
+
+                    {/* --- ADIÇÃO DA NOVA SEÇÃO DE EVENTOS --- */}
+                    <div className="mb-8">
+                       <MeusEventos student={student} db={db} />
+                    </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-8">
 
@@ -107,7 +122,7 @@ const Dashboard = ({ student, setStudent }) => {
                                         <tbody className="bg-white divide-y divide-gray-200">
                                             {gradesList.map((grade) => {
                                                 const isNumericGrade = !isNaN(parseFloat(grade.nota));
-                                                const gradeColorClass = isNumericGrade ? (parseFloat(grade.nota) > 8 ? 'text-green-800 bg-green-100 font-bold' : 'text-amber-800 bg-amber-100 font-bold') : 'text-gray-600';
+                                                const gradeColorClass = isNumericGrade ? (parseFloat(grade.nota) >= 7 ? 'text-green-800 bg-green-100 font-bold' : 'text-red-800 bg-red-100 font-bold') : 'text-gray-600';
                                                 const hasSubGrades = grade.subGrades && Object.keys(grade.subGrades).length > 0;
                                                 const clickableClass = hasSubGrades ? 'cursor-pointer hover:bg-gray-200' : '';
 

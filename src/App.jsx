@@ -1,64 +1,74 @@
-import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore'; // Importe o getFirestore aqui
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import Notification from './components/Notification';
-import LoginComponent from './components/LoginComponent';
-import Dashboard from './components/Dashboard';
+// src/App.jsx (CORRIGIDO com controle de autenticação)
 
-// --- Configuração do Firebase ---
+import { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+// 1. IMPORTAR AS FUNÇÕES DE AUTENTICAÇÃO
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth'; 
+
+import Dashboard from './components/Dashboard';
+import LoginComponent from './components/LoginComponent';
+import Notification from './components/Notification';
+import { LoaderCircle } from 'lucide-react'; // Para um loading inicial
+
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// --- Inicialização do Firebase ---
-let app, auth, db;
-try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-} catch (error) {
-    console.error("Erro ao inicializar o Firebase. Verifique a sua configuração.", error);
-}
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app); // 2. INICIAR O SERVIÇO DE AUTENTICAÇÃO
 
-// --- Componente Principal da Aplicação ---
 export default function App() {
-    const [isAuthReady, setIsAuthReady] = useState(false);
     const [student, setStudent] = useState(null);
-    const [notification, setNotification] = useState(null);
+    const [notification, setNotification] = useState({ message: '', type: '' });
+    
+    // 3. NOVO ESTADO PARA CONTROLAR SE A AUTENTICAÇÃO ESTÁ PRONTA
+    const [isAuthReady, setIsAuthReady] = useState(false);
 
     useEffect(() => {
-        if (!auth) {
-            setIsAuthReady(true);
-            return;
+        // Tenta pegar o aluno salvo no localStorage
+        const savedStudentData = localStorage.getItem('studentData');
+        if (savedStudentData) {
+            setStudent(JSON.parse(savedStudentData));
         }
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                try {
-                    await signInAnonymously(auth);
-                } catch (error) {
-                    console.error("Falha no login anônimo:", error);
-                    setNotification({ type: 'error', message: 'Falha ao conectar com o serviço.' })
-                }
+
+        // 4. LÓGICA DE AUTENTICAÇÃO ANÔNIMA
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Se já existe um usuário (anônimo ou não), estamos prontos
+                setIsAuthReady(true);
+            } else {
+                // Se não há usuário, tenta fazer o login anônimo
+                signInAnonymously(auth)
+                    .then(() => {
+                        setIsAuthReady(true);
+                    })
+                    .catch((error) => {
+                        console.error("Erro no login anônimo:", error);
+                        setNotification({ message: 'Erro de conexão. Verifique suas regras de segurança.', type: 'error' });
+                    });
             }
-            setIsAuthReady(true);
         });
+
+        // Limpa o listener quando o componente é desmontado
         return () => unsubscribe();
-    }, []);
+    }, []); // O array vazio [] garante que isso rode apenas uma vez
 
-    const handleCloseNotification = () => {
-        setNotification(null);
-    };
-
+    // 5. MOSTRAR UM LOADING ENQUANTO A AUTENTICAÇÃO NÃO ESTÁ PRONTA
     if (!isAuthReady) {
         return (
-            <div className="min-h-screen bg-gray-100 flex justify-center items-center">
-                <div className="text-xl font-semibold text-gray-600">A carregar...</div>
+            <div className="flex items-center justify-center h-screen bg-gray-50">
+                <div className="flex flex-col items-center gap-4">
+                    <LoaderCircle className="w-10 h-10 text-blue-600 animate-spin" />
+                    <p className="text-gray-600">Conectando...</p>
+                </div>
             </div>
         );
     }
@@ -66,12 +76,12 @@ export default function App() {
     return (
         <div className="antialiased text-gray-800">
             <Notification
-                message={notification?.message}
-                type={notification?.type}
-                onClose={handleCloseNotification}
+                message={notification.message}
+                type={notification.type}
+                onClose={() => setNotification({ message: '', type: '' })}
             />
             {student ? (
-                <Dashboard student={student} setStudent={setStudent} />
+                <Dashboard student={student} setStudent={setStudent} db={db} />
             ) : (
                 <LoginComponent 
                     setStudent={setStudent} 

@@ -1,29 +1,15 @@
-// src/components/Dashboard.jsx
-
 import React, { useState, useMemo } from 'react';
-import { Maximize2 } from 'lucide-react';
+import { ArrowLeft, Maximize2 } from 'lucide-react';
 import GradesChart from './GradesChart';
 import SubGradesModal from './SubGradesModal';
 import Footer from './Footer';
 import RecommendationCard from './RecommendationCard';
-// --- ADIÇÃO ---
 import MeusEventos from './MeusEventos'; 
 
-// --- ADIÇÃO ---
-const Dashboard = ({ student, setStudent, db }) => {
+const DesempenhoPage = ({ student, setView, db }) => {
     const [selectedSubGrades, setSelectedSubGrades] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const getDisplayName = (fullName) => {
-        if (typeof fullName !== 'string') return '';
-        const socialNameMatch = fullName.match(/\(([^)]+)\)/);
-        if (socialNameMatch && socialNameMatch[1]) {
-            return socialNameMatch[1].trim().split(' ')[0];
-        }
-        return fullName.split(' ')[0];
-    };
-
-    const displayName = getDisplayName(student.name);
     const subjectOrder = ["ICN", "OFFA", "ADM", "PWB", "TRI", "CMV"];
     const subjectFullNames = {
         "ICN": "ICN - INTERNET E COMPUTAÇÃO EM NUVEM",
@@ -85,26 +71,18 @@ const Dashboard = ({ student, setStudent, db }) => {
         setSelectedSubGrades(null);
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem('studentData');
-        setStudent(null);
-    };
-
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 sm:p-6 md:p-8">
             <main className="flex-grow">
                 <div className="max-w-7xl mx-auto">
-                    <header className="flex flex-wrap justify-between items-center mb-8 gap-4">
-                        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Bem-vindo(a), <span className="text-blue-600">{displayName}</span>!</h1>
-                        <button onClick={handleLogout} className="bg-red-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-600 transition-colors">
-                            Sair
+                    <header className="flex justify-between items-center mb-8">
+                        <button onClick={() => setView('home')} className="flex items-center gap-2 text-blue-600 hover:underline">
+                            <ArrowLeft size={18} />
+                            Voltar
                         </button>
                     </header>
-
-                    {/* --- ADIÇÃO DA NOVA SEÇÃO DE EVENTOS --- */}
-                    <div className="mb-8">
-                       <MeusEventos student={student} db={db} />
-                    </div>
+                    
+                    <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-8">Meu Desempenho Acadêmico</h1>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 lg:gap-8">
 
@@ -179,4 +157,4 @@ const Dashboard = ({ student, setStudent, db }) => {
     );
 };
 
-export default Dashboard;
+export default DesempenhoPage;

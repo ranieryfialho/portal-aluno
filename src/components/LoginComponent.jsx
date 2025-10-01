@@ -128,7 +128,7 @@ const LoginComponent = ({ setStudent, setNotification, db }) => {
               disabled={isLoading}
               className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300 transition-colors duration-300"
             >
-              {isLoading ? "A entrar..." : "Entrar"}
+              {isLoading ? "Entrando..." : "Entrar"}
             </button>
           </form>
         </div>

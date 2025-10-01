@@ -1,15 +1,14 @@
-// src/App.jsx (CORRIGIDO com controle de autenticação)
-
 import { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
-// 1. IMPORTAR AS FUNÇÕES DE AUTENTICAÇÃO
 import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth'; 
 
-import Dashboard from './components/Dashboard';
-import LoginComponent from './components/LoginComponent';
-import Notification from './components/Notification';
-import { LoaderCircle } from 'lucide-react'; // Para um loading inicial
+import LoginComponent from './components/LoginComponent.jsx';
+import Notification from './components/Notification.jsx';
+import { LoaderCircle } from 'lucide-react';
+import HomePage from './components/HomePage.jsx';
+import DesempenhoPage from './components/DesempenhoPage.jsx';
+import EventosPage from './pages/EventosPage.jsx';
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -23,52 +22,42 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const auth = getAuth(app); // 2. INICIAR O SERVIÇO DE AUTENTICAÇÃO
+const auth = getAuth(app);
 
 export default function App() {
     const [student, setStudent] = useState(null);
     const [notification, setNotification] = useState({ message: '', type: '' });
-    
-    // 3. NOVO ESTADO PARA CONTROLAR SE A AUTENTICAÇÃO ESTÁ PRONTA
     const [isAuthReady, setIsAuthReady] = useState(false);
+    const [view, setView] = useState('home');
 
     useEffect(() => {
-        // Tenta pegar o aluno salvo no localStorage
         const savedStudentData = localStorage.getItem('studentData');
         if (savedStudentData) {
             setStudent(JSON.parse(savedStudentData));
         }
 
-        // 4. LÓGICA DE AUTENTICAÇÃO ANÔNIMA
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
-                // Se já existe um usuário (anônimo ou não), estamos prontos
                 setIsAuthReady(true);
             } else {
-                // Se não há usuário, tenta fazer o login anônimo
-                signInAnonymously(auth)
-                    .then(() => {
-                        setIsAuthReady(true);
-                    })
-                    .catch((error) => {
-                        console.error("Erro no login anônimo:", error);
-                        setNotification({ message: 'Erro de conexão. Verifique suas regras de segurança.', type: 'error' });
-                    });
+                signInAnonymously(auth).then(() => setIsAuthReady(true)).catch(console.error);
             }
         });
 
-        // Limpa o listener quando o componente é desmontado
         return () => unsubscribe();
-    }, []); // O array vazio [] garante que isso rode apenas uma vez
+    }, []);
 
-    // 5. MOSTRAR UM LOADING ENQUANTO A AUTENTICAÇÃO NÃO ESTÁ PRONTA
+    useEffect(() => {
+        if (!student) {
+            setView('home');
+        }
+    }, [student]);
+
+
     if (!isAuthReady) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-50">
-                <div className="flex flex-col items-center gap-4">
-                    <LoaderCircle className="w-10 h-10 text-blue-600 animate-spin" />
-                    <p className="text-gray-600">Conectando...</p>
-                </div>
+                <LoaderCircle className="w-10 h-10 text-blue-600 animate-spin" />
             </div>
         );
     }
@@ -81,7 +70,11 @@ export default function App() {
                 onClose={() => setNotification({ message: '', type: '' })}
             />
             {student ? (
-                <Dashboard student={student} setStudent={setStudent} db={db} />
+                <>
+                    {view === 'home' && <HomePage student={student} setStudent={setStudent} setView={setView} db={db} />}
+                    {view === 'performance' && <DesempenhoPage student={student} setView={setView} db={db} />}
+                    {view === 'events' && <EventosPage student={student} setView={setView} db={db} />}
+                </>
             ) : (
                 <LoginComponent 
                     setStudent={setStudent} 

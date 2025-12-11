@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, BarChart3, CalendarDays } from 'lucide-react';
+import { ArrowRight, BarChart3, CalendarDays, MonitorPlay } from 'lucide-react'; // Importei MonitorPlay
 import Footer from './Footer.jsx';
 
 const HomePage = ({ student, setStudent, setView }) => {
@@ -36,48 +36,75 @@ const HomePage = ({ student, setStudent, setView }) => {
                         </button>
                     </header>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Alterei o grid para lg:grid-cols-3 para caber 3 cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        
+                        {/* Card Desempenho */}
                         <div 
                             onClick={() => setView('performance')} 
-                            className="group bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow cursor-pointer flex flex-col justify-between"
+                            className="group bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between border border-transparent hover:border-blue-100"
                         >
                             <div>
                                 <div className="flex items-center gap-4 mb-4">
                                     <div className="bg-blue-100 p-3 rounded-lg">
                                         <BarChart3 className="text-blue-600" size={24} />
                                     </div>
-                                    <h2 className="text-2xl font-bold text-gray-800">Desempenho Acadêmico</h2>
+                                    <h2 className="text-xl font-bold text-gray-800">Desempenho Acadêmico</h2>
                                 </div>
-                                <p className="text-gray-600">
-                                    Acesse seu boletim detalhado, veja gráficos de performance e receba sugestões de estudo personalizadas.
+                                <p className="text-gray-600 text-sm">
+                                    Acesse seu boletim, gráficos de performance e sugestões de estudo.
                                 </p>
                             </div>
-                            <div className="mt-6 flex items-center justify-end text-blue-600 font-semibold group-hover:underline">
+                            <div className="mt-6 flex items-center justify-end text-blue-600 font-semibold group-hover:underline text-sm">
                                 Acessar Desempenho
-                                <ArrowRight className="ml-2 transition-transform group-hover:translate-x-1" size={18} />
+                                <ArrowRight className="ml-2 transition-transform group-hover:translate-x-1" size={16} />
                             </div>
                         </div>
 
+                        {/* Card Eventos */}
                         <div 
                             onClick={() => setView('events')}
-                            className="group bg-white p-8 rounded-xl shadow-lg hover:shadow-xl transition-shadow cursor-pointer flex flex-col justify-between"
+                            className="group bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between border border-transparent hover:border-green-100"
                         >
                             <div>
                                 <div className="flex items-center gap-4 mb-4">
                                     <div className="bg-green-100 p-3 rounded-lg">
                                         <CalendarDays className="text-green-600" size={24} />
                                     </div>
-                                    <h2 className="text-2xl font-bold text-gray-800">Mural de Eventos</h2>
+                                    <h2 className="text-xl font-bold text-gray-800">Mural de Eventos</h2>
                                 </div>
-                                <p className="text-gray-600">
-                                    Veja os eventos disponíveis para inscrição e gerencie os eventos em que você já se cadastrou.
+                                <p className="text-gray-600 text-sm">
+                                    Veja eventos disponíveis e gerencie suas inscrições.
                                 </p>
                             </div>
-                            <div className="mt-6 flex items-center justify-end text-green-600 font-semibold group-hover:underline">
+                            <div className="mt-6 flex items-center justify-end text-green-600 font-semibold group-hover:underline text-sm">
                                 Acessar Eventos
-                                <ArrowRight className="ml-2 transition-transform group-hover:translate-x-1" size={18} />
+                                <ArrowRight className="ml-2 transition-transform group-hover:translate-x-1" size={16} />
                             </div>
                         </div>
+
+                        {/* NOVO CARD: Laboratório */}
+                        <div 
+                            onClick={() => setView('laboratorio')}
+                            className="group bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all cursor-pointer flex flex-col justify-between border border-transparent hover:border-purple-100"
+                        >
+                            <div>
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="bg-purple-100 p-3 rounded-lg">
+                                        <MonitorPlay className="text-purple-600" size={24} />
+                                    </div>
+                                    <h2 className="text-xl font-bold text-gray-800">Laboratório de Apoio</h2>
+                                </div>
+                                <p className="text-gray-600 text-sm">
+                                    Agende horários para reforço, digitação ou estudo livre nos computadores.
+                                </p>
+                            </div>
+                            <div className="mt-6 flex items-center justify-end text-purple-600 font-semibold group-hover:underline text-sm">
+                                Agendar Horário
+                                <ArrowRight className="ml-2 transition-transform group-hover:translate-x-1" size={16} />
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </main>

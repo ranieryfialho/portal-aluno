@@ -9,6 +9,7 @@ import { LoaderCircle } from 'lucide-react';
 import HomePage from './components/HomePage.jsx';
 import DesempenhoPage from './components/DesempenhoPage.jsx';
 import EventosPage from './pages/EventosPage.jsx';
+import StudentLabPage from './pages/StudentLabPage.jsx'; // Importe a nova página
 
 const firebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -74,6 +75,8 @@ export default function App() {
                     {view === 'home' && <HomePage student={student} setStudent={setStudent} setView={setView} db={db} />}
                     {view === 'performance' && <DesempenhoPage student={student} setView={setView} db={db} />}
                     {view === 'events' && <EventosPage student={student} setView={setView} db={db} />}
+                    {/* Renderiza a página do laboratório */}
+                    {view === 'laboratorio' && <StudentLabPage student={student} setView={setView} db={db} />}
                 </>
             ) : (
                 <LoginComponent 

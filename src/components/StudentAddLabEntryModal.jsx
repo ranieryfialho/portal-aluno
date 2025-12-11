@@ -15,7 +15,6 @@ const conditionalActivities = [
   "Segunda Chamada de Prova", "Reposição de Aula", "Reforço de Aula"
 ];
 
-// Atividades que exigem pagamento ou justificativa
 const paidActivities = [
   "Segunda Chamada de Prova", "Reposição de Aula"
 ];
